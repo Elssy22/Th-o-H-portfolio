@@ -42,6 +42,41 @@ function LayoutIcon({ kind }: { kind: string }) {
   );
 }
 
+// Vidéo de couverture qui ne se charge/joue que quand elle est (presque)
+// visible à l'écran, et se décharge en la quittant. Évite de télécharger
+// toutes les vidéos de la grille dès l'arrivée sur la page (coût de bande
+// passante), tout en gardant l'autoplay pour celles qu'on regarde vraiment.
+function CoverVideo({ src, className }: { src: string; className: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { rootMargin: "150px", threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={ref}
+      src={inView ? src : undefined}
+      muted
+      loop
+      playsInline
+      autoPlay={inView}
+      preload="none"
+      controlsList="nodownload"
+      disablePictureInPicture
+      className={className}
+    />
+  );
+}
+
 function useRevealOnScroll(count: number) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -169,16 +204,7 @@ export default function Home() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 ) : (
-                  <video
-                    src={cover.url ?? ""}
-                    muted
-                    loop
-                    playsInline
-                    autoPlay
-                    controlsList="nodownload"
-                    disablePictureInPicture
-                    className="w-full h-full object-cover"
-                  />
+                  <CoverVideo src={cover.url ?? ""} className="w-full h-full object-cover" />
                 )}
                 {(shoot.title || shoot.summary) && (
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/55 transition-colors duration-300 flex items-center justify-center">
