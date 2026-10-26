@@ -70,6 +70,31 @@ export const update = mutation({
   },
 });
 
+// Supprime le fichier en stockage UNIQUEMENT s'il n'est référencé par aucun
+// autre item encore existant. Évite de casser un fichier partagé par erreur
+// (cause du bug du 26/10 : des items de démo pointaient tous vers le même
+// fichier, et en supprimer un cassait les autres).
+async function deleteStorageIfUnused(
+  ctx: { db: any; storage: any },
+  storageId: string,
+  excludeItemId?: string
+) {
+  const stillUsed = await ctx.db
+    .query("items")
+    .filter((q: any) =>
+      excludeItemId
+        ? q.and(q.eq(q.field("storageId"), storageId), q.neq(q.field("_id"), excludeItemId))
+        : q.eq(q.field("storageId"), storageId)
+    )
+    .first();
+  if (stillUsed) return;
+  try {
+    await ctx.storage.delete(storageId);
+  } catch {
+    // déjà absent, rien à faire
+  }
+}
+
 export const remove = mutation({
   args: { token: v.string(), id: v.id("shoots") },
   handler: async (ctx, { token, id }) => {
@@ -79,8 +104,8 @@ export const remove = mutation({
       .withIndex("by_shoot", (q) => q.eq("shootId", id))
       .collect();
     for (const item of items) {
-      await ctx.storage.delete(item.storageId);
       await ctx.db.delete(item._id);
+      await deleteStorageIfUnused(ctx, item.storageId, item._id);
     }
     await ctx.db.delete(id);
   },
@@ -94,47 +119,25 @@ export const reorder = mutation({
   },
 });
 
-// Utilitaire ponctuel : applique le même résumé à tous les shoots (placeholder de test).
-export const bulkSetSummary = mutation({
-  args: { token: v.string(), summary: v.string() },
-  handler: async (ctx, { token, summary }) => {
+// Vide entièrement le portfolio (shoots + items + fichiers) pour repartir de
+// zéro. Demande explicite de l'utilisateur uniquement.
+export const wipeAll = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
     checkAdmin(token);
-    const shoots = await ctx.db.query("shoots").collect();
-    await Promise.all(shoots.map((s) => ctx.db.patch(s._id, { summary })));
-    return { updated: shoots.length };
-  },
-});
-
-// Utilitaire ponctuel (démo) : duplique la photo de couverture de chaque shoot
-// pour atteindre 5 exemplaires, afin de visualiser la navigation galerie.
-export const duplicateCoverInAllShoots = mutation({
-  args: { token: v.string(), targetCount: v.number() },
-  handler: async (ctx, { token, targetCount }) => {
-    checkAdmin(token);
-    const shoots = await ctx.db.query("shoots").collect();
-    let added = 0;
-    for (const shoot of shoots) {
-      const items = await ctx.db
-        .query("items")
-        .withIndex("by_shoot", (q) => q.eq("shootId", shoot._id))
-        .order("asc")
-        .collect();
-      if (items.length === 0) continue;
-      const cover = items[0];
-      let order = items.reduce((m, i) => Math.max(m, i.order), 0);
-      const missing = targetCount - items.length;
-      for (let i = 0; i < missing; i++) {
-        order += 1;
-        await ctx.db.insert("items", {
-          shootId: shoot._id,
-          storageId: cover.storageId,
-          type: cover.type,
-          order,
-          createdAt: Date.now(),
-        });
-        added += 1;
+    const items = await ctx.db.query("items").collect();
+    for (const item of items) {
+      await ctx.db.delete(item._id);
+      try {
+        await ctx.storage.delete(item.storageId);
+      } catch {
+        // déjà absent
       }
     }
-    return { added };
+    const shoots = await ctx.db.query("shoots").collect();
+    for (const shoot of shoots) {
+      await ctx.db.delete(shoot._id);
+    }
+    return { deletedShoots: shoots.length, deletedItems: items.length };
   },
 });

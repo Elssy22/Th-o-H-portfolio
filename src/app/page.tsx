@@ -146,7 +146,10 @@ export default function Home() {
             Le portfolio arrive bientôt.
           </p>
         )}
-        <div className={`grid ${currentLayout.cols} gap-[2px]`}>
+        <div
+          className={`grid ${currentLayout.cols} gap-[2px] select-none`}
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {visibleShoots.map((shoot, i) => {
             const cover = shoot.items[0];
             return (
@@ -162,6 +165,7 @@ export default function Home() {
                   <img
                     src={cover.url ?? ""}
                     alt=""
+                    draggable={false}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 ) : (
@@ -171,6 +175,8 @@ export default function Home() {
                     loop
                     playsInline
                     autoPlay
+                    controlsList="nodownload"
+                    disablePictureInPicture
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -211,10 +217,11 @@ export default function Home() {
 
       {openShoot && (
         <div
-          className={`lightbox-backdrop fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6 ${
+          className={`lightbox-backdrop fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6 select-none ${
             closing ? "" : "is-open"
           }`}
           onClick={closeLightbox}
+          onContextMenu={(e) => e.preventDefault()}
         >
           {openShoot.items.length > 1 && (
             <button
@@ -230,16 +237,21 @@ export default function Home() {
             <img
               src={openShoot.items[activePhoto].url ?? ""}
               alt=""
+              draggable={false}
               className={`lightbox-media max-h-[80vh] max-w-full object-contain ${closing ? "" : "is-open"}`}
               onClick={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
             />
           ) : (
             <video
               src={openShoot.items[activePhoto].url ?? ""}
               controls
+              controlsList="nodownload"
+              disablePictureInPicture
               autoPlay
               className={`lightbox-media max-h-[80vh] max-w-full object-contain ${closing ? "" : "is-open"}`}
               onClick={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.preventDefault()}
             />
           )}
 

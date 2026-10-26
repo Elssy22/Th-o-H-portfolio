@@ -27,15 +27,24 @@ function MailIcon() {
   );
 }
 
+function HomeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 10.5 12 3l8.5 7.5" />
+      <path d="M5.5 9.5V20a1 1 0 0 0 1 1H9a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h2.5a1 1 0 0 0 1-1V9.5" />
+    </svg>
+  );
+}
+
 export default function Header() {
   return (
     <header className="header-fade-in sticky top-0 z-50 flex items-center justify-between px-5 py-4 border-b border-[#3a0d12] bg-black/90 backdrop-blur">
       <button
-        aria-label="Menu"
-        className="flex flex-col gap-[5px] w-6"
+        aria-label="Retour en haut"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="flex items-center justify-center w-6 text-white hover:opacity-70 transition-opacity"
       >
-        <span className="h-[1.5px] bg-white w-full" />
-        <span className="h-[1.5px] bg-white w-4" />
+        <HomeIcon />
       </button>
       <a href="/" className="text-sm tracking-[0.3em] uppercase font-serif absolute left-1/2 -translate-x-1/2">
         Théo Hamel

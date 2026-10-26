@@ -45,9 +45,24 @@ export const deleteItem = mutation({
   handler: async (ctx, { token, id }) => {
     checkAdmin(token);
     const item = await ctx.db.get(id);
-    if (item) {
-      await ctx.storage.delete(item.storageId);
-      await ctx.db.delete(id);
+    if (!item) return;
+    await ctx.db.delete(id);
+
+    // Le fichier n'est supprimé que si aucun autre item ne le référence
+    // encore. Protège contre un storageId partagé par erreur entre plusieurs
+    // items (cause du bug du 26/10 : supprimer un item cassait la photo d'un
+    // autre qui pointait vers le même fichier). On ne bloque jamais la
+    // suppression de la fiche pour autant.
+    const stillUsed = await ctx.db
+      .query("items")
+      .filter((q) => q.eq(q.field("storageId"), item.storageId))
+      .first();
+    if (!stillUsed) {
+      try {
+        await ctx.storage.delete(item.storageId);
+      } catch {
+        // fichier déjà absent : rien à faire
+      }
     }
   },
 });
@@ -60,29 +75,3 @@ export const reorderWithinShoot = mutation({
   },
 });
 
-// Migration unique : chaque item sans shootId reçoit son propre shoot.
-export const migrateLegacyItemsToShoots = mutation({
-  args: { token: v.string() },
-  handler: async (ctx, { token }) => {
-    checkAdmin(token);
-    const items = await ctx.db.query("items").withIndex("by_order").order("asc").collect();
-    const orphans = items.filter((i) => i.shootId === undefined);
-    let shootOrder = (await ctx.db.query("shoots").collect()).reduce(
-      (m, s) => Math.max(m, s.order),
-      0
-    );
-    let migrated = 0;
-    for (const item of orphans) {
-      shootOrder += 1;
-      const shootId = await ctx.db.insert("shoots", {
-        title: "",
-        summary: "",
-        order: shootOrder,
-        createdAt: Date.now(),
-      });
-      await ctx.db.patch(item._id, { shootId, order: 0 });
-      migrated += 1;
-    }
-    return { migrated };
-  },
-});
