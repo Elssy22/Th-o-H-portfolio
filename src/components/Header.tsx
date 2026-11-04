@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 function InstagramIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -46,9 +48,9 @@ export default function Header() {
       >
         <HomeIcon />
       </button>
-      <a href="/" className="text-sm tracking-[0.3em] uppercase font-serif absolute left-1/2 -translate-x-1/2">
+      <Link href="/" className="text-sm tracking-[0.3em] uppercase font-serif absolute left-1/2 -translate-x-1/2">
         Théo Hamel
-      </a>
+      </Link>
       <div className="flex items-center gap-4 text-white">
         <a
           href="https://instagram.com/_hamelthe_"

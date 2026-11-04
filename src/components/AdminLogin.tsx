@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { ArrowUpRightIcon, ChevronIcon } from "./admin/icons";
@@ -84,13 +85,13 @@ export default function AdminLogin() {
 
       <header className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-6">
         <span className="font-display text-[17px] uppercase tracking-[0.32em] text-ivory">Théo Hamel</span>
-        <a
+        <Link
           href="/"
           className="flex items-center gap-1.5 text-xs text-white/50 transition-colors hover:text-ivory"
         >
           <span className="admin-link">Retour au site</span>
           <ArrowUpRightIcon size={13} />
-        </a>
+        </Link>
       </header>
 
       <main className="relative z-10 flex flex-1 items-center justify-center px-6 pb-24">

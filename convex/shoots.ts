@@ -1,4 +1,5 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 function checkAdmin(token: string) {
@@ -75,13 +76,13 @@ export const update = mutation({
 // (cause du bug du 26/10 : des items de démo pointaient tous vers le même
 // fichier, et en supprimer un cassait les autres).
 async function deleteStorageIfUnused(
-  ctx: { db: any; storage: any },
+  ctx: MutationCtx,
   storageId: string,
-  excludeItemId?: string
+  excludeItemId?: Id<"items">
 ) {
   const stillUsed = await ctx.db
     .query("items")
-    .filter((q: any) =>
+    .filter((q) =>
       excludeItemId
         ? q.and(q.eq(q.field("storageId"), storageId), q.neq(q.field("_id"), excludeItemId))
         : q.eq(q.field("storageId"), storageId)
@@ -89,7 +90,8 @@ async function deleteStorageIfUnused(
     .first();
   if (stillUsed) return;
   try {
-    await ctx.storage.delete(storageId);
+    // storageId est stocké en string dans le schéma : on le type comme Id de fichier
+    await ctx.storage.delete(storageId as Id<"_storage">);
   } catch {
     // déjà absent, rien à faire
   }
