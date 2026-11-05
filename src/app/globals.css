@@ -128,18 +128,42 @@ body {
   background-size: 100% 1px;
 }
 
-/* Panneau dépliable (hauteur animée sans JS) */
-.admin-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+/* Éléments déplaçables (shoots, photos) : souris, doigt et clavier */
+.admin-sortable {
+  /* pas de menu « Enregistrer l'image » ni de sélection de texte pendant l'appui long */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
-.admin-collapse.is-open {
-  grid-template-rows: 1fr;
+.admin-sortable img,
+.admin-sortable a {
+  -webkit-user-drag: none;
 }
-.admin-collapse > * {
-  min-height: 0;
-  overflow: hidden;
+.admin-sortable:focus-visible {
+  outline: 1px solid rgba(237, 230, 218, 0.7);
+  outline-offset: 3px;
+}
+/* L'élément attrapé se soulève ; les autres s'écartent pour lui faire de la place */
+/* (« scale » se combine avec le « transform » posé par le glisser-déposer) */
+.admin-sortable {
+  transition-property: scale, box-shadow;
+  transition-duration: 0.2s;
+}
+.admin-sortable.is-dragging {
+  cursor: grabbing;
+  scale: 1.05;
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.95);
+}
+.admin-dragging .admin-tile-actions {
+  opacity: 0 !important;
+}
+
+/* Textes d'aide : on parle d'« appui long » au doigt, de « glisser » à la souris */
+.admin-touch-only { display: none; }
+@media (hover: none) {
+  .admin-touch-only { display: inline; }
+  .admin-pointer-only { display: none; }
 }
 
 /* Toasts */
@@ -202,7 +226,7 @@ body {
   .admin-pop {
     animation: none;
   }
-  .admin-collapse,
+  .admin-sortable,
   .admin-tile-actions,
   .admin-underline,
   .admin-link {
