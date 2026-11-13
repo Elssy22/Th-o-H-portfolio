@@ -14,12 +14,13 @@ export async function POST(req: NextRequest) {
   if (!(await requireAuth())) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
-  const { title, summary } = await req.json();
+  const { title, summary, published } = await req.json();
   const convex = getConvexServerClient();
   const id = await convex.mutation(api.shoots.create, {
     token: process.env.ADMIN_SECRET as string,
     title,
     summary,
+    published: typeof published === "boolean" ? published : undefined,
   });
   return NextResponse.json({ ok: true, id });
 }
@@ -28,13 +29,14 @@ export async function PATCH(req: NextRequest) {
   if (!(await requireAuth())) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
-  const { id, title, summary } = await req.json();
+  const { id, title, summary, published } = await req.json();
   const convex = getConvexServerClient();
   await convex.mutation(api.shoots.update, {
     token: process.env.ADMIN_SECRET as string,
     id: id as Id<"shoots">,
     title,
     summary,
+    published: typeof published === "boolean" ? published : undefined,
   });
   return NextResponse.json({ ok: true });
 }
