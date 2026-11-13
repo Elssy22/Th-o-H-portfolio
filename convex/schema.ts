@@ -5,6 +5,9 @@ export default defineSchema({
   shoots: defineTable({
     title: v.string(),
     summary: v.optional(v.string()),
+    // false = brouillon, visible seulement dans le back office.
+    // Absent (shoots créés avant le mode brouillon) = en ligne.
+    published: v.optional(v.boolean()),
     order: v.number(),
     createdAt: v.number(),
   }).index("by_order", ["order"]),

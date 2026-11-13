@@ -9,6 +9,7 @@
  */
 
 import type * as items from "../items.js";
+import type * as lib_readToken from "../lib/readToken.js";
 import type * as shoots from "../shoots.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   items: typeof items;
+  "lib/readToken": typeof lib_readToken;
   shoots: typeof shoots;
 }>;
 
