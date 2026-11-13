@@ -1,23 +1,57 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { adminApi } from "./api";
 import { ChevronIcon, EyeOffIcon, TrashIcon } from "./icons";
 import MediaGrid, { type MediaItem } from "./MediaGrid";
 import { countLabel } from "./labels";
 import { SaveIndicator, errorMessage, useAdminUI, type SaveState } from "./ui";
+import { useAdminShoots } from "./useShoots";
 
 type Shoot = {
   _id: Id<"shoots">;
   title: string;
   summary: string;
+  published: boolean;
   items: MediaItem[];
 };
+
+// Brouillon / en ligne, avec affichage immédiat pendant l'enregistrement
+function usePublished(shoot: Shoot) {
+  const { toast } = useAdminUI();
+  const [pending, setPending] = useState<boolean | null>(null);
+  // Le serveur a confirmé : on rend la main à la vraie valeur
+  if (pending !== null && shoot.published === pending) setPending(null);
+  const published = pending ?? shoot.published;
+
+  async function set(next: boolean) {
+    setPending(next);
+    try {
+      await adminApi.setPublished(shoot._id, next);
+      toast(next ? "Shoot en ligne sur le site" : "Repassé en brouillon : retiré du site");
+    } catch (e) {
+      setPending(null);
+      toast(errorMessage(e, "Le changement n'a pas pu être enregistré"), "error");
+    }
+  }
+
+  return { published, set, saving: pending !== null };
+}
+
+function StatusPill({ published }: { published: boolean }) {
+  return published ? (
+    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] text-ivory">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#7fbf8a]" /> En ligne
+    </span>
+  ) : (
+    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] text-white/55">
+      <span className="h-1.5 w-1.5 rounded-full border border-white/60" /> Brouillon
+    </span>
+  );
+}
 
 // Enregistre titre et résumé tout seuls, 0,9 s après la dernière frappe.
 function useAutosave(shoot: Shoot) {
@@ -80,6 +114,7 @@ function Editor({ shoot, position, total, isNew }: { shoot: Shoot; position: num
   const router = useRouter();
   const { toast, confirm } = useAdminUI();
   const meta = useAutosave(shoot);
+  const status = usePublished(shoot);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -134,7 +169,17 @@ function Editor({ shoot, position, total, isNew }: { shoot: Shoot; position: num
     }
   }
 
-  const hidden = shoot.items.length === 0;
+  const empty = shoot.items.length === 0;
+  const publishButton = (
+    <button
+      type="button"
+      onClick={() => status.set(true)}
+      disabled={empty || status.saving}
+      className="flex items-center justify-center gap-2 rounded-full bg-ivory px-5 py-2.5 text-[11px] uppercase tracking-[0.22em] text-black transition-all hover:bg-white hover:shadow-[0_0_30px_-8px_rgba(237,230,218,0.6)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none"
+    >
+      Publier sur le site
+    </button>
+  );
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8 pb-24">
@@ -148,13 +193,50 @@ function Editor({ shoot, position, total, isNew }: { shoot: Shoot; position: num
           <ChevronIcon direction="left" size={14} />
           Shoots
         </Link>
-        <span className="hidden sm:inline text-[10px] uppercase tracking-[0.3em] text-white/25">
+        <span className="hidden md:inline text-[10px] uppercase tracking-[0.3em] text-white/25">
           Shoot {String(position).padStart(2, "0")} / {String(total).padStart(2, "0")}
         </span>
-        <SaveIndicator state={meta.state} onRetry={meta.flush} />
+        {/* Sur téléphone, on garde l'état d'enregistrement ; le statut est dans l'encadré juste dessous */}
+        <div className="flex items-center gap-6">
+          <span className="hidden sm:block">
+            <StatusPill published={status.published} />
+          </span>
+          <SaveIndicator state={meta.state} onRetry={meta.flush} />
+        </div>
       </div>
 
-      <section className="pt-8 sm:pt-12">
+      <div
+        className={`mt-6 flex flex-col gap-4 rounded-lg border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
+          status.published ? "border-white/[0.08] bg-white/[0.02]" : "border-dashed border-ivory/25 bg-ivory/[0.03]"
+        }`}
+      >
+        <div>
+          <StatusPill published={status.published} />
+          <p className="mt-1.5 text-[13px] leading-relaxed text-white/50">
+            {status.published
+              ? empty
+                ? "Publié, mais invisible sur le site tant qu'il n'y a pas de photo."
+                : "Visible sur le site. Chaque modification y apparaît tout de suite."
+              : empty
+                ? "Visible seulement ici. Ajoute au moins une photo pour pouvoir le publier."
+                : "Visible seulement ici. Publie-le quand il est prêt."}
+          </p>
+        </div>
+        {status.published ? (
+          <button
+            type="button"
+            onClick={() => status.set(false)}
+            disabled={status.saving}
+            className="self-start rounded-full border border-white/15 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-white/60 transition-colors hover:border-white/40 hover:text-ivory disabled:opacity-40 sm:self-auto"
+          >
+            Repasser en brouillon
+          </button>
+        ) : (
+          publishButton
+        )}
+      </div>
+
+      <section className="pt-8 sm:pt-10">
         <label htmlFor="shoot-title" className="text-[10px] uppercase tracking-[0.3em] text-white/35">
           Titre
         </label>
@@ -208,7 +290,7 @@ function Editor({ shoot, position, total, isNew }: { shoot: Shoot; position: num
               </p>
             )}
           </div>
-          {hidden && (
+          {status.published && empty && (
             <p className="flex items-center gap-1.5 text-xs text-ember/90">
               <EyeOffIcon size={12} /> Invisible sur le site tant qu&apos;il n&apos;y a pas de photo
             </p>
@@ -225,20 +307,23 @@ function Editor({ shoot, position, total, isNew }: { shoot: Shoot; position: num
         >
           Terminé
         </Link>
-        <button
-          type="button"
-          onClick={deleteShoot}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {!status.published && !empty && publishButton}
+          <button
+            type="button"
+            onClick={deleteShoot}
           className="flex items-center gap-2 rounded-full px-3 py-2 text-xs text-white/40 transition-colors hover:bg-ember/10 hover:text-ember"
         >
-          <TrashIcon size={13} /> Supprimer ce shoot
-        </button>
+            <TrashIcon size={13} /> Supprimer ce shoot
+          </button>
+        </div>
       </div>
     </main>
   );
 }
 
 export default function ShootEditor({ id, isNew }: { id: string; isNew: boolean }) {
-  const shoots = useQuery(api.shoots.list);
+  const shoots = useAdminShoots();
 
   if (shoots === undefined) {
     return (

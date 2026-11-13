@@ -1,16 +1,15 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "../../../convex/_generated/api";
 import { adminApi } from "./api";
 import { useOptimisticOrder } from "./hooks";
 import { EyeOffIcon, PlayIcon, PlusIcon } from "./icons";
 import { countLabel } from "./labels";
 import { SortableGrid, SortableItem } from "./Sortable";
 import { errorMessage, useAdminUI } from "./ui";
+import { useAdminShoots } from "./useShoots";
 
 function NewShootButton({ className }: { className?: string }) {
   const router = useRouter();
@@ -46,7 +45,7 @@ function NewShootButton({ className }: { className?: string }) {
 }
 
 export default function ShootsDashboard() {
-  const shoots = useQuery(api.shoots.list);
+  const shoots = useAdminShoots();
   const { toast } = useAdminUI();
   const { ordered, move } = useOptimisticOrder(shoots ?? [], adminApi.reorderShoots, () =>
     toast("Le nouvel ordre n'a pas pu être enregistré", "error")
@@ -55,7 +54,9 @@ export default function ShootsDashboard() {
   const items = ordered.flatMap((s) => s.items);
   const videos = items.filter((i) => i.type === "video").length;
   const photos = items.length - videos;
-  const hidden = ordered.filter((s) => s.items.length === 0).length;
+  const drafts = ordered.filter((s) => !s.published).length;
+  // En ligne mais sans photo : le site ne peut pas l'afficher
+  const hidden = ordered.filter((s) => s.published && s.items.length === 0).length;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8 pt-8 sm:pt-12 pb-28">
@@ -67,7 +68,14 @@ export default function ShootsDashboard() {
           <p className="mt-3 text-[11px] uppercase tracking-[0.25em] text-white/40">
             {shoots === undefined
               ? "Chargement…"
-              : `${ordered.length} shoot${ordered.length > 1 ? "s" : ""} · ${photos} photo${photos > 1 ? "s" : ""} · ${videos} vidéo${videos > 1 ? "s" : ""}`}
+              : [
+                  `${ordered.length} shoot${ordered.length > 1 ? "s" : ""}`,
+                  drafts > 0 && `${drafts} brouillon${drafts > 1 ? "s" : ""}`,
+                  `${photos} photo${photos > 1 ? "s" : ""}`,
+                  `${videos} vidéo${videos > 1 ? "s" : ""}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </p>
         </div>
         <NewShootButton className="hidden sm:flex" />
@@ -76,7 +84,7 @@ export default function ShootsDashboard() {
       {hidden > 0 && (
         <p className="mt-5 flex items-center gap-2 text-xs text-ember/90">
           <EyeOffIcon size={12} />
-          {hidden} shoot{hidden > 1 ? "s" : ""} sans photo, donc invisible{hidden > 1 ? "s" : ""} sur le site
+          {hidden} shoot{hidden > 1 ? "s" : ""} en ligne mais sans photo, donc invisible{hidden > 1 ? "s" : ""} sur le site
         </p>
       )}
 
@@ -117,6 +125,7 @@ export default function ShootsDashboard() {
           {ordered.map((shoot, i) => {
             const cover = shoot.items[0];
             const empty = shoot.items.length === 0;
+            const draft = !shoot.published;
             return (
               <SortableItem key={shoot._id} id={shoot._id} label={`${shoot.title || "Sans titre"}, position ${i + 1}`}>
                 <Link
@@ -124,14 +133,20 @@ export default function ShootsDashboard() {
                   draggable={false}
                   className="group block outline-none focus-visible:ring-1 focus-visible:ring-ivory/60 rounded-[3px]"
                 >
-                  <div className="admin-card-cover relative aspect-[4/5] overflow-hidden rounded-[3px] bg-white/[0.05]">
+                  <div
+                    className={`admin-card-cover relative aspect-[4/5] overflow-hidden rounded-[3px] bg-white/[0.05] ${
+                      draft ? "outline outline-1 -outline-offset-1 outline-dashed outline-ivory/30" : ""
+                    }`}
+                  >
                     {cover?.type === "image" && (
                       <img
                         src={cover.url ?? ""}
                         alt=""
                         draggable={false}
                         loading={i < 8 ? "eager" : "lazy"}
-                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                        className={`h-full w-full object-cover transition-[transform,opacity] duration-700 ease-out group-hover:scale-[1.04] ${
+                          draft ? "opacity-55" : ""
+                        }`}
                       />
                     )}
                     {cover?.type === "video" && (
@@ -140,7 +155,7 @@ export default function ShootsDashboard() {
                         muted
                         playsInline
                         preload="metadata"
-                        className="pointer-events-none h-full w-full object-cover"
+                        className={`pointer-events-none h-full w-full object-cover ${draft ? "opacity-55" : ""}`}
                       />
                     )}
                     {empty && (
@@ -153,15 +168,21 @@ export default function ShootsDashboard() {
                     <span className="absolute top-2 left-2.5 font-display italic text-[15px] text-white/80">
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    {cover?.type === "video" && (
+                    {cover?.type === "video" && !draft && (
                       <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
                         <PlayIcon size={10} />
                       </span>
                     )}
-                    {empty && (
-                      <span className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-ember/90 px-2 py-[3px] text-[9px] uppercase tracking-[0.18em] text-white">
-                        <EyeOffIcon size={10} /> Invisible
+                    {draft ? (
+                      <span className="absolute top-2 right-2 rounded-full border border-ivory/50 bg-black/70 px-2 py-[3px] text-[9px] uppercase tracking-[0.18em] text-ivory backdrop-blur-sm">
+                        Brouillon
                       </span>
+                    ) : (
+                      empty && (
+                        <span className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-ember/90 px-2 py-[3px] text-[9px] uppercase tracking-[0.18em] text-white">
+                          <EyeOffIcon size={10} /> Invisible
+                        </span>
+                      )
                     )}
                   </div>
                   <h2
@@ -179,7 +200,7 @@ export default function ShootsDashboard() {
         </SortableGrid>
       )}
 
-      <p className="mt-14 text-center text-[11px] text-white/25">Chaque modification est publiée instantanément sur le site.</p>
+      <p className="mt-14 text-center text-[11px] text-white/25">Les shoots en ligne sont mis à jour instantanément sur le site. Les brouillons ne sont visibles qu&apos;ici.</p>
 
       {/* Sur téléphone, le bouton de création reste sous le pouce */}
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black via-black/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 sm:hidden">

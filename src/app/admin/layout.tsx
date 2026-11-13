@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, isValidSession } from "@/lib/adminSession";
+import { SESSION_COOKIE, isValidSession, readToken } from "@/lib/adminSession";
 import AdminLogin from "@/components/AdminLogin";
 import AdminShell from "@/components/admin/AdminShell";
 
@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 
   return (
     <div className={`${cormorant.variable} admin-grain flex flex-1 flex-col bg-[#050505] selection:bg-ivory selection:text-black`}>
-      {loggedIn ? <AdminShell>{children}</AdminShell> : <AdminLogin />}
+      {loggedIn ? <AdminShell readToken={readToken()}>{children}</AdminShell> : <AdminLogin />}
     </div>
   );
 }

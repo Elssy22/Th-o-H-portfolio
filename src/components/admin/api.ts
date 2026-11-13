@@ -13,8 +13,11 @@ async function send<T = unknown>(url: string, method: string, body?: unknown): P
 }
 
 export const adminApi = {
+  // Les nouveaux shoots démarrent en brouillon : Théo les publie quand ils sont prêts
   createShoot: (title: string) =>
-    send<{ ok: true; id: Id<"shoots"> }>("/api/admin/shoots", "POST", { title, summary: "" }),
+    send<{ ok: true; id: Id<"shoots"> }>("/api/admin/shoots", "POST", { title, summary: "", published: false }),
+  setPublished: (id: Id<"shoots">, published: boolean) =>
+    send("/api/admin/shoots", "PATCH", { id, published }),
   updateShoot: (id: Id<"shoots">, title: string, summary: string) =>
     send("/api/admin/shoots", "PATCH", { id, title, summary }),
   deleteShoot: (id: Id<"shoots">) => send("/api/admin/shoots", "DELETE", { id }),

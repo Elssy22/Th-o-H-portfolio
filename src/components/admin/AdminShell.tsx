@@ -5,6 +5,7 @@ import { useState } from "react";
 import { adminApi } from "./api";
 import { ArrowUpRightIcon, LogoutIcon } from "./icons";
 import { AdminUIProvider } from "./ui";
+import { ReadTokenProvider } from "./useShoots";
 
 function TopBar() {
   const [leaving, setLeaving] = useState(false);
@@ -54,11 +55,13 @@ function TopBar() {
 // Cadre commun à toutes les pages admin : barre du haut + toasts/confirmations.
 // Placé dans le layout, il reste monté quand on passe de la liste à un shoot,
 // donc un toast (« Shoot supprimé ») survit au changement de page.
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+export default function AdminShell({ readToken, children }: { readToken: string; children: React.ReactNode }) {
   return (
-    <AdminUIProvider>
-      <TopBar />
-      {children}
-    </AdminUIProvider>
+    <ReadTokenProvider token={readToken}>
+      <AdminUIProvider>
+        <TopBar />
+        {children}
+      </AdminUIProvider>
+    </ReadTokenProvider>
   );
 }
